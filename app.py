@@ -14,7 +14,7 @@ st.markdown("""
 
 st.title("מאמן אזור הגאונות 🚀")
 
-# 2. אתחול משתנים
+# 2. אתחול
 if "step" not in st.session_state:
     st.session_state.step = "lang"
 if "messages" not in st.session_state:
@@ -43,7 +43,7 @@ elif st.session_state.step == "intro":
     btn = "מתחילים במסע ←" if st.session_state.lang == "he" else "Start Journey ←"
     st.markdown(f'<div class="intro-box">{text}</div>', unsafe_allow_html=True)
     if st.button(btn):
-        msg = "נהדר! מהו הדבר שאת/ה הכי אוהב/ת לעשות? (משהו שמעניק לך אנרגיה)." if st.session_state.lang == "he" else "Great! What is the one thing you love doing the most?"
+        msg = "נהדר! בואו נתחיל. מהו הדבר שאת/ה הכי אוהב/ת לעשות? (משהו שמעניק לך אנרגיה)." if st.session_state.lang == "he" else "Great! Let's begin. What is the one thing you love doing the most?"
         st.session_state.messages.append({"role": "assistant", "content": msg})
         st.session_state.step = "chat"; st.rerun()
 
@@ -57,16 +57,20 @@ elif st.session_state.step == "chat":
         with st.chat_message("user"): st.markdown(p)
 
         try:
-            # שינוי המודל ל-1.5 פלאש - יציב וחסכוני יותר
+            # שימוש בשם המודל הקצר - הכי בטוח נגד 404
             model = genai.GenerativeModel('gemini-1.5-flash')
             
-            # שליחת ההודעה עם הקשר
-            response = model.generate_content(f"Coach context: Zone of Genius expert. User said: {p}")
+            # שליחת ההודעה האחרונה כטקסט פשוט
+            response = model.generate_content(p)
             
             st.session_state.messages.append({"role": "assistant", "content": response.text})
             st.rerun()
         except Exception as e:
-            if "429" in str(e):
-                st.error("הגענו למכסת ההודעות של גוגל לדקה זו. נסו שוב בעוד 30 שניות!")
-            else:
+            # אם יש שגיאה, ננסה את המודל השני כגיבוי מיידי
+            try:
+                model = genai.GenerativeModel('gemini-pro')
+                response = model.generate_content(p)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                st.rerun()
+            except:
                 st.error(f"שגיאה טכנית: {str(e)}")
