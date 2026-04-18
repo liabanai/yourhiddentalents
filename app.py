@@ -1,61 +1,72 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. הגדרות תצוגה
+# 1. עיצוב ויישור לימין
 st.set_page_config(page_title="Genius Zone Coach", layout="centered")
-st.markdown("<style>.stApp { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
+st.markdown("""
+    <style>
+    .stApp, [data-testid="stChatMessageContent"] { direction: rtl !important; text-align: right !important; }
+    h1, h3 { text-align: center !important; }
+    .stButton button { width: 100%; border-radius: 25px; font-weight: bold; height: 3.5em; }
+    .intro-box { font-size: 1.2rem; line-height: 1.8; text-align: center; padding: 25px; background-color: #f0f2f6; border-radius: 20px; }
+    </style>
+    """, unsafe_allow_html=True)
 
 st.title("מאמן אזור הגאונות 🚀")
 
-# 2. חיבור ל-API
-try:
-    api_key = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=api_key)
-except:
-    st.error("חסר API KEY ב-Secrets")
-    st.stop()
-
-# 3. מציאת המודל הזמין (התיקון לבאג ה-404)
-if "model_name" not in st.session_state:
-    try:
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        # סדר עדיפויות: ננסה פלאש, אם לא אז פרו, אם לא אז הראשון ברשימה
-        if 'models/gemini-1.5-flash' in available_models:
-            st.session_state.model_name = 'models/gemini-1.5-flash'
-        elif 'models/gemini-pro' in available_models:
-            st.session_state.model_name = 'models/gemini-pro'
-        else:
-            st.session_state.model_name = available_models[0]
-    except:
-        st.session_state.model_name = 'gemini-pro' # ברירת מחדל אחרונה
-
-# 4. הוראות מערכת
-SYSTEM_PROMPT = "You are a professional coach for the Zone of Genius. Conduct the session in Hebrew if the user chooses so."
-
-# 5. ניהול שיחה
+# 2. אתחול משתנים
+if "step" not in st.session_state:
+    st.session_state.step = "lang"
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    st.session_state.messages.append({"role": "assistant", "content": "ברוך הבא! באיזו שפה נתחיל? (עברית / English)"})
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+# 3. חיבור ל-API
+try:
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+except:
+    st.error("בעיה ב-API Key")
 
-if prompt := st.chat_input("הקלד/י כאן..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+# שלב 1: שפה
+if st.session_state.step == "lang":
+    st.markdown("### Choose Your Language / בחרו שפה")
+    c1, c2, c3, c4 = st.columns([1, 2, 2, 1])
+    with c2:
+        if st.button("English 🇺🇸"):
+            st.session_state.lang = "en"; st.session_state.step = "intro"; st.rerun()
+    with c3:
+        if st.button("עברית 🇮🇱"):
+            st.session_state.lang = "he"; st.session_state.step = "intro"; st.rerun()
 
-    try:
-        # שימוש בשם המודל שמצאנו באופן דינמי
-        model = genai.GenerativeModel(model_name=st.session_state.model_name, system_instruction=SYSTEM_PROMPT)
-        
-        history = [{"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]} for m in st.session_state.messages]
-        
-        response = model.generate_content(history)
-        
-        with st.chat_message("assistant"):
-            st.markdown(response.text)
+# שלב 2: פתיחה
+elif st.session_state.step == "intro":
+    text = "ברוכים הבאים למסע לטרנספורמציה שלכם! היום נמצא את מה שהופך אתכם לייחודיים באמת." if st.session_state.lang == "he" else "Welcome! Today we find what makes you truly unique."
+    btn = "מתחילים במסע ←" if st.session_state.lang == "he" else "Start Journey ←"
+    st.markdown(f'<div class="intro-box">{text}</div>', unsafe_allow_html=True)
+    if st.button(btn):
+        msg = "נהדר! מהו הדבר שאת/ה הכי אוהב/ת לעשות? (משהו שמעניק לך אנרגיה)." if st.session_state.lang == "he" else "Great! What is the one thing you love doing the most?"
+        st.session_state.messages.append({"role": "assistant", "content": msg})
+        st.session_state.step = "chat"; st.rerun()
+
+# שלב 3: צ'אט
+elif st.session_state.step == "chat":
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]): st.markdown(m["content"])
+
+    if p := st.chat_input("כתבו כאן..."):
+        st.session_state.messages.append({"role": "user", "content": p})
+        with st.chat_message("user"): st.markdown(p)
+
+        try:
+            # שינוי המודל ל-1.5 פלאש - יציב וחסכוני יותר
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # שליחת ההודעה עם הקשר
+            response = model.generate_content(f"Coach context: Zone of Genius expert. User said: {p}")
+            
             st.session_state.messages.append({"role": "assistant", "content": response.text})
-    except Exception as e:
-        st.error(f"שגיאה: {e}")
+            st.rerun()
+        except Exception as e:
+            if "429" in str(e):
+                st.error("הגענו למכסת ההודעות של גוגל לדקה זו. נסו שוב בעוד 30 שניות!")
+            else:
+                st.error(f"שגיאה טכנית: {str(e)}")
