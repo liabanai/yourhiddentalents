@@ -1,76 +1,61 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. הגדרות תצוגה וכיווניות (RTL)
+# 1. הגדרות תצוגה
 st.set_page_config(page_title="Genius Zone Coach", layout="centered")
-st.markdown("""
-    <style>
-    .stApp { direction: rtl; text-align: right; }
-    input, textarea { direction: rtl; text-align: right; }
-    div[data-testid="stChatMessageContent"] { text-align: right; }
-    </style>
-    """, unsafe_allow_html=True)
+st.markdown("<style>.stApp { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
 
 st.title("מאמן אזור הגאונות 🚀")
 
-# 2. חיבור ל-API Key
+# 2. חיבור ל-API
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
 except:
-    st.error("שגיאה: לא נמצא API Key ב-Secrets של Streamlit.")
+    st.error("חסר API KEY ב-Secrets")
     st.stop()
 
-# 3. הוראות המערכת (הלוגיקה של המאמן)
-SYSTEM_PROMPT = """
-You are an elite performance coach specializing in Dr. Gay Hendricks' 'Zone of Genius'. 
+# 3. מציאת המודל הזמין (התיקון לבאג ה-404)
+if "model_name" not in st.session_state:
+    try:
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        # סדר עדיפויות: ננסה פלאש, אם לא אז פרו, אם לא אז הראשון ברשימה
+        if 'models/gemini-1.5-flash' in available_models:
+            st.session_state.model_name = 'models/gemini-1.5-flash'
+        elif 'models/gemini-pro' in available_models:
+            st.session_state.model_name = 'models/gemini-pro'
+        else:
+            st.session_state.model_name = available_models[0]
+    except:
+        st.session_state.model_name = 'gemini-pro' # ברירת מחדל אחרונה
 
-Step 0: Start by welcoming the user and asking for language preference (Hebrew / English).
-If Hebrew is chosen, use these questions:
-1. "מהו הדבר שאת/ה הכי אוהב/ת לעשות? (משהו שמעניק לך אנרגיה)."
-2. "מהו החלק בעבודה שלך שמניב את היחס הגבוה ביותר של תוצאות לעומת זמן?"
-3. "מהי היכולת הייחודית שלך? משהו שמרגיש לך טבעי אבל לאחרים נראה קשה."
-4. "מהו הערך הייחודי שאת/ה מביא/ה לעולם כשאת/ה במיטבך?"
+# 4. הוראות מערכת
+SYSTEM_PROMPT = "You are a professional coach for the Zone of Genius. Conduct the session in Hebrew if the user chooses so."
 
-Analysis: Identify the Genius DNA vs. Excellence Trap. 
-Always ask for user approval before moving to Part B (Career Matches).
-"""
-
-# 4. ניהול זיכרון השיחה
+# 5. ניהול שיחה
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    welcome_msg = "ברוך הבא למסע לגילוי אזור הגאונות שלך! באיזו שפה תרצה/י שננהל את השיחה? (עברית / English)"
-    st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
+    st.session_state.messages.append({"role": "assistant", "content": "ברוך הבא! באיזו שפה נתחיל? (עברית / English)"})
 
-# 5. הצגת הודעות קודמות
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 6. קלט משתמש ותגובת מודל
 if prompt := st.chat_input("הקלד/י כאן..."):
-    # הצגת הודעת המשתמש
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # יצירת תשובה מה-AI (כאן הכל חייב להיות עם הזחה פנימה)
     try:
-        model = genai.GenerativeModel(model_name='gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
+        # שימוש בשם המודל שמצאנו באופן דינמי
+        model = genai.GenerativeModel(model_name=st.session_state.model_name, system_instruction=SYSTEM_PROMPT)
         
-        # בניית היסטוריה לפורמט של גוגל
-        history = [
-            {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
-            for m in st.session_state.messages
-        ]
+        history = [{"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]} for m in st.session_state.messages]
         
         response = model.generate_content(history)
-        full_response = response.text
         
-        # הצגת תשובת ה-AI
         with st.chat_message("assistant"):
-            st.markdown(full_response)
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-            
+            st.markdown(response.text)
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
     except Exception as e:
-        st.error(f"אירעה שגיאה בחיבור למודל: {e}")
+        st.error(f"שגיאה: {e}")
