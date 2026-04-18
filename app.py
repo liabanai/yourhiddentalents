@@ -69,7 +69,7 @@ if prompt := st.chat_input("הקלד/י כאן..."):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)    
+   model = genai.GenerativeModel(model_name='models/gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
     chat_history = [
         {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
         for m in st.session_state.messages
