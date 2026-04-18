@@ -1,93 +1,105 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. הגדרות תצוגה
+# 1. הגדרות תצוגה, יישור לימין (RTL) ושיפור קריאות
 st.set_page_config(page_title="Genius Zone Coach", layout="centered")
+
 st.markdown("""
     <style>
-    .stApp, [data-testid="stChatMessageContent"] { direction: rtl !important; text-align: right !important; }
-    h1, h3 { text-align: center !important; }
-    .stButton button { width: 100%; border-radius: 25px; font-weight: bold; height: 3.5em; }
-    .intro-box { font-size: 1.2rem; line-height: 1.8; text-align: center; padding: 25px; background-color: #f0f2f6; border-radius: 20px; border: 1px solid #d1d5db; }
+    /* הגדרת כיווניות ויישור כללי - שימוש ב-!important כדי לדרוס הגדרות מערכת */
+    .stApp, .stChatMessage, div[data-testid="stChatMessageContent"] {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+    
+    /* תיקון ספציפי לטקסט בתוך הודעות הצ'אט */
+    div[data-testid="stChatMessageContent"] p, div[data-testid="stChatMessageContent"] li {
+        text-align: right !important;
+        direction: rtl !important;
+        font-size: 1.15rem !important;
+        line-height: 1.7 !important;
+    }
+    
+    /* יישור תיבת הקלט */
+    div[data-testid="stChatInput"] textarea {
+        text-align: right !important;
+        direction: rtl !important;
+    }
+
+    /* עיצוב כפתורים */
+    .stButton button {
+        width: 100%;
+        border-radius: 20px;
+        font-weight: bold;
+        height: 3.5em;
+    }
+
+    /* מירכוז כותרות */
+    h1, h2, h3 {
+        text-align: center !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("מאמן אזור הגאונות 🚀")
 
-# 2. חיבור ל-API
-if "api_configured" not in st.session_state:
-    try:
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        st.session_state.api_configured = True
-    except:
-        st.error("חסר API Key")
-        st.stop()
+# 2. חיבור ל-API וזיהוי מודל
+try:
+    api_key = st.secrets["GOOGLE_API_KEY"]
+    genai.configure(api_key=api_key)
+    if "model_name" not in st.session_state:
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        st.session_state.model_name = 'models/gemini-1.5-flash' if 'models/gemini-1.5-flash' in available_models else 'models/gemini-pro'
+except:
+    st.error("שגיאה בחיבור ל-API. וודאו שהמפתח מוזן ב-Secrets.")
+    st.stop()
 
-# 3. ניהול שלבים
-if "step" not in st.session_state:
-    st.session_state.step = "lang"
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# 3. הוראות המערכת
+SYSTEM_PROMPT = """
+You are an elite performance coach specializing in Dr. Gay Hendricks' 'Zone of Genius'. 
+- Conduct the session ONLY in the language chosen by the user.
+- Ask the 4 questions ONE BY ONE. Wait for a response before proceeding.
+- Analysis: After 4 answers, provide: Genius DNA, Excellence Trap, and Genius Statement.
+"""
 
-# שלב 1: שפה
-if st.session_state.step == "lang":
-    st.markdown("### Choose Your Language / בחרו שפה")
-    c1, c2, c3, c4 = st.columns([1, 2, 2, 1])
-    with c2:
+# 4. מסך בחירת שפה
+if "language" not in st.session_state:
+    st.markdown("<h3 style='text-align: center;'>Choose Your Language / בחרו שפה</h3>", unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+    
+    with col1:
         if st.button("English 🇺🇸"):
-            st.session_state.lang = "en"
-            st.session_state.step = "intro"
+            st.session_state.language = "English"
+            intro = "We are embarking on a journey to find your 'Zone of Genius'. This is the intersection of your passion, effortless skill, and unique value. Most people live in their 'Zone of Excellence' – doing things they are good at, but which ultimately drain them. Today, we will find what makes you truly unique."
+            st.session_state.messages = [{"role": "assistant", "content": intro}]
             st.rerun()
-    with c3:
+            
+    with col2:
         if st.button("עברית 🇮🇱"):
-            st.session_state.lang = "he"
-            st.session_state.step = "intro"
+            st.session_state.language = "Hebrew"
+            intro = "אנחנו יוצאים למסע למציאת 'אזור הגאונות' שלכם. זהו המפגש בין התשוקה שלכם, המיומנות חסרת המאמץ והערך הייחודי שלכם.\n\nרוב האנשים חיים ב'אזור המצוינות' שלהם – עושים דברים שהם טובים בהם, אך בסופו של דבר מרוקנים אותם.\n\nהיום, נמצא את מה שהופך אתכם לייחודיים באמת."
+            st.session_state.messages = [{"role": "assistant", "content": intro}]
             st.rerun()
+    st.stop()
 
-# שלב 2: הודעת פתיחה
-elif st.session_state.step == "intro":
-    if st.session_state.lang == "he":
-        st.markdown('<div class="intro-box"><strong>ברוכים הבאים למסע לטרנספורמציה שלכם!</strong><br><br>אנחנו יוצאים למסע למציאת "אזור הגאונות" שלכם. זהו המפגש בין התשוקה שלכם, המיומנות חסרת המאמץ והערך הייחודי שלכם.<br><br>רוב האנשים חיים ב"אזור המצוינות" שלהם – עושים דברים שהם טובים בהם, אך בסופו של דבר מרוקנים אותם. היום, נמצא את מה שהופך אתכם לייחודיים באמת.</div>', unsafe_allow_html=True)
-        if st.button("מתחילים במסע ←"):
-            st.session_state.messages.append({"role": "assistant", "content": "נהדר! בואו נתחיל. מהו הדבר שאת/ה הכי אוהב/ת לעשות? (משהו שמעניק לך אנרגיה)."})
-            st.session_state.step = "chat"
-            st.rerun()
-    else:
-        st.markdown('<div class="intro-box"><strong>Welcome to your Transformation Journey!</strong><br><br>We are embarking on a journey to find your \'Zone of Genius\'. This is the intersection of your passion, effortless skill, and unique value.</div>', unsafe_allow_html=True)
-        if st.button("Start Journey ←"):
-            st.session_state.messages.append({"role": "assistant", "content": "Great! Let's begin. What is the one thing you love doing the most? (Something that gives you energy)."})
-            st.session_state.step = "chat"
-            st.rerun()
+# 5. הצגת היסטוריית הצ'אט
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-# שלב 3: צ'אט
-elif st.session_state.step == "chat":
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"]):
-            st.markdown(m["content"])
+# 6. לוגיקת הצ'אט
+if prompt := st.chat_input("השיבו כאן..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-    if p := st.chat_input("כתבו כאן..."):
-        st.session_state.messages.append({"role": "user", "content": p})
-        with st.chat_message("user"):
-            st.markdown(p)
-
-        try:
-            # שימוש בשם מודל קצר בלבד! בלי models/
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            
-            # בניית היסטוריה פשוטה
-            history = []
-            for m in st.session_state.messages:
-                history.append({"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]})
-            
-            response = model.generate_content(history)
+    try:
+        model = genai.GenerativeModel(model_name=st.session_state.model_name, system_instruction=SYSTEM_PROMPT)
+        history = [{"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]} for m in st.session_state.messages]
+        response = model.generate_content(history)
+        
+        with st.chat_message("assistant"):
+            st.markdown(response.text)
             st.session_state.messages.append({"role": "assistant", "content": response.text})
-            st.rerun()
-        except Exception as e:
-            # אם גם זה נכשל, ננסה את השם הישן והבטוח
-            try:
-                model = genai.GenerativeModel('gemini-pro')
-                response = model.generate_content(history)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
-                st.rerun()
-            except:
-                st.error("אירעה שגיאה בחיבור לגוגל. נסו שוב בעוד דקה.")
+    except Exception as e:
+        st.error(f"אירעה שגיאה: {e}")
