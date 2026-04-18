@@ -1,37 +1,50 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. הגדרות תצוגה ויישור לימין (RTL)
+# 1. הגדרות תצוגה, יישור לימין (RTL) ושיפור קריאות
 st.set_page_config(page_title="Genius Zone Coach", layout="centered")
 
-# הוספת CSS לתיקון יישור לימין באופן גורף
 st.markdown("""
     <style>
-    /* הגדרת כיווניות כללית לאפליקציה */
+    /* הגדרת כיווניות ויישור כללי */
     .stApp {
         direction: rtl;
         text-align: right;
     }
-    /* יישור הודעות הצ'אט */
+    
+    /* שיפור הקריאות של טקסט הצ'אט */
     div[data-testid="stChatMessageContent"] {
         text-align: right;
         direction: rtl;
+        font-size: 1.1rem; /* טקסט גדול יותר */
+        line-height: 1.6;   /* מרווח שורות נעים */
     }
-    /* יישור תיבת הקלט */
+    
+    /* הוספת מרווח בין פסקאות בתוך ההודעה */
+    div[data-testid="stChatMessageContent"] p {
+        margin-bottom: 15px;
+    }
+
+    /* יישור ותצוגת תיבת הקלט */
     div[data-testid="stChatInput"] textarea {
         text-align: right;
         direction: rtl;
+        font-size: 1.05rem;
     }
+
     /* עיצוב כפתורים */
     .stButton button {
         width: 100%;
         border-radius: 20px;
         font-weight: bold;
-        height: 3em;
+        height: 3.5em;
+        font-size: 1rem;
     }
-    /* התאמת כותרות */
+
+    /* מירכוז כותרות */
     h1, h2, h3 {
         text-align: center !important;
+        padding-bottom: 1rem;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -55,6 +68,7 @@ You are an elite performance coach specializing in Dr. Gay Hendricks' 'Zone of G
 - Conduct the session ONLY in the language chosen by the user.
 - Ask the 4 questions ONE BY ONE. Wait for a response before proceeding.
 - Analysis: After 4 answers, provide: Genius DNA, Excellence Trap, and Genius Statement.
+- Keep the tone encouraging, professional, and insightful.
 """
 
 # 4. מסך בחירת שפה
@@ -72,7 +86,7 @@ if "language" not in st.session_state:
     with col2:
         if st.button("עברית 🇮🇱"):
             st.session_state.language = "Hebrew"
-            intro = """אנחנו יוצאים למסע למציאת "אזור הגאונות" שלכם. זהו המפגש בין התשוקה שלכם, המיומנות חסרת המאמץ והערך הייחודי שלכם. רוב האנשים חיים ב"אזור המצוינות" שלהם – עושים דברים שהם טובים בהם, אך בסופו של דבר מרוקנים אותם. היום, נמצא את מה שהופך אתכם לייחודיים באמת."""
+            intro = """אנחנו יוצאים למסע למציאת "אזור הגאונות" שלכם. זהו המפגש בין התשוקה שלכם, המיומנות חסרת המאמץ והערך הייחודי שלכם. \n\nרוב האנשים חיים ב"אזור המצוינות" שלהם – עושים דברים שהם טובים בהם, אך בסופו של דבר מרוקנים אותם. \n\nהיום, נמצא את מה שהופך אתכם לייחודיים באמת."""
             st.session_state.messages = [{"role": "assistant", "content": intro}]
             st.rerun()
     st.stop()
