@@ -1,82 +1,76 @@
 import streamlit as st
 import google.generativeai as genai
 
-# הגדרת כיווניות לימין עבור עברית (RTL)
+# 1. הגדרות תצוגה וכיווניות (RTL)
 st.set_page_config(page_title="Genius Zone Coach", layout="centered")
 st.markdown("""
     <style>
-    .stApp {
-        direction: rtl;
-        text-align: right;
-    }
-    input, textarea {
-        direction: rtl;
-        text-align: right;
-    }
+    .stApp { direction: rtl; text-align: right; }
+    input, textarea { direction: rtl; text-align: right; }
+    div[data-testid="stChatMessageContent"] { text-align: right; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("מאמן אזור הגאונות 🚀")
 
-# הגדרת ה-API Key מתוך ה-Secrets של Streamlit
+# 2. חיבור ל-API Key
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
 except:
-    st.error("שגיאה: לא נמצא API Key ב-Secrets של המערכת.")
+    st.error("שגיאה: לא נמצא API Key ב-Secrets של Streamlit.")
     st.stop()
 
-# הוראות המערכת המדויקות שבנינו
+# 3. הוראות המערכת (הלוגיקה של המאמן)
 SYSTEM_PROMPT = """
 You are an elite performance coach specializing in Dr. Gay Hendricks' 'Zone of Genius'. 
-Your mission is to peel away the layers of 'Excellence' to reveal the user's effortless 'Genius'.
 
-Step 0: Start by welcoming the user and asking: "In which language would you like to conduct this session? / באיזו שפה תרצה/י לבצע את התהליך? (Hebrew / English)".
-If Hebrew is chosen, use the specific questions below.
+Step 0: Start by welcoming the user and asking for language preference (Hebrew / English).
+If Hebrew is chosen, use these questions:
+1. "מהו הדבר שאת/ה הכי אוהב/ת לעשות? (משהו שמעניק לך אנרגיה)."
+2. "מהו החלק בעבודה שלך שמניב את היחס הגבוה ביותר של תוצאות לעומת זמן?"
+3. "מהי היכולת הייחודית שלך? משהו שמרגיש לך טבעי אבל לאחרים נראה קשה."
+4. "מהו הערך הייחודי שאת/ה מביא/ה לעולם כשאת/ה במיטבך?"
 
-The Questions (Hebrew Version):
-1. "מהו הדבר שאת/ה הכי אוהב/ת לעשות? (משהו שאת/ה יכול/ה לעשות במשך שעות ועדיין להרגיש מלא/ה באנרגיה, ולא מרוקנת ממנה)."
-2. "מהו החלק בעבודה שלך (או בעיסוקים שלך) שמניב את היחס הגבוה ביותר של תוצאות לעומת זמן שהושקע?"
-3. "מהי היכולת הייחודית שלך? (מהו הכישרון המיוחד שקיבלת, שבו את/ה משתמש/ת באופן טבעי מאז שאת/ה זוכר/ת את עצמך? משהו שמרגיש לך כל כך טבעי, שאת/ה לפעמים מניח/ה שכולם יכולים לעשות אותו – למרות שהם לא)."
-4. "מהו הערך הייחודי שאת/ה מביא/ה לעולם כשאת/ה במיטבך? (כאשר את/ה מביא/ה לידי ביטוי את אותה יכולת — מה קורה סביבך?)"
-
-Follow-up logic: If an answer is vague, ask ONLY ONE clarifying follow-up.
-
-Analysis Part A: 
-Start with: "ניתחתי לעומק את התשובות שלך. העבודה שלי היא לקלף את שכבות ה'מצוינות' שבהן העולם מתגמל אותך, כדי לחשוף את ה'גאונות' האמיתית שלך – המקום שבו הזמן עוצר מלכת וההשפעה שלך היא חסרת מאמץ. להלן דוח אזור הגאונות שלך:"
-Present: 1. Genius DNA (Meta-Skill), 2. Excellence Trap, 3. Genius Statement.
-
-MANDATORY VALIDATION: 
-After Part A, you MUST ask: "האם הניתוח הזה נשמע לך מדויק? [כן, הוא מדויק] | [לא, אני רוצה לשנות משהו]".
-If they want to change, update Part A. 
-If they approve, proceed to Part B: Precision Career Matches & A Day in the Life.
+Analysis: Identify the Genius DNA vs. Excellence Trap. 
+Always ask for user approval before moving to Part B (Career Matches).
 """
 
-# ניהול היסטוריית השיחה
+# 4. ניהול זיכרון השיחה
 if "messages" not in st.session_state:
     st.session_state.messages = []
     welcome_msg = "ברוך הבא למסע לגילוי אזור הגאונות שלך! באיזו שפה תרצה/י שננהל את השיחה? (עברית / English)"
     st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
 
-# הצגת הצ'אט
+# 5. הצגת הודעות קודמות
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# קלט מהמשתמש
+# 6. קלט משתמש ותגובת מודל
 if prompt := st.chat_input("הקלד/י כאן..."):
+    # הצגת הודעת המשתמש
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-   model = genai.GenerativeModel(model_name='models/gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
-    chat_history = [
-        {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
-        for m in st.session_state.messages
-    ]
-    
-    response = model.generate_content(chat_history)
-    
-    with st.chat_message("assistant"):
-        st.markdown(response.text)
-        st.session_state.messages.append({"role": "assistant", "content": response.text})
+    # יצירת תשובה מה-AI (כאן הכל חייב להיות עם הזחה פנימה)
+    try:
+        model = genai.GenerativeModel(model_name='gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
+        
+        # בניית היסטוריה לפורמט של גוגל
+        history = [
+            {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
+            for m in st.session_state.messages
+        ]
+        
+        response = model.generate_content(history)
+        full_response = response.text
+        
+        # הצגת תשובת ה-AI
+        with st.chat_message("assistant"):
+            st.markdown(full_response)
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+            
+    except Exception as e:
+        st.error(f"אירעה שגיאה בחיבור למודל: {e}")
