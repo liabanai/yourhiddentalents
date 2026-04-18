@@ -20,11 +20,20 @@ if "step" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 3. חיבור ל-API
+# 3. חיבור ל-API וגילוי מודל אוטומטי
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    if "model_to_use" not in st.session_state:
+        # בדיקה איזה שם מודל גוגל מאשרת כרגע במערכת שלך
+        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        # ננסה למצוא את פלאש, אם לא אז פרו, אם לא אז הראשון ברשימה
+        if 'models/gemini-1.5-flash' in models: st.session_state.model_to_use = 'models/gemini-1.5-flash'
+        elif 'gemini-1.5-flash' in models: st.session_state.model_to_use = 'gemini-1.5-flash'
+        elif 'models/gemini-pro' in models: st.session_state.model_to_use = 'models/gemini-pro'
+        else: st.session_state.model_to_use = models[0]
 except:
-    st.error("בעיה ב-API Key")
+    # גיבוי במקרה של תקלה ברשימה
+    st.session_state.model_to_use = 'gemini-pro'
 
 # שלב 1: שפה
 if st.session_state.step == "lang":
@@ -43,7 +52,7 @@ elif st.session_state.step == "intro":
     btn = "מתחילים במסע ←" if st.session_state.lang == "he" else "Start Journey ←"
     st.markdown(f'<div class="intro-box">{text}</div>', unsafe_allow_html=True)
     if st.button(btn):
-        msg = "נהדר! בואו נתחיל. מהו הדבר שאת/ה הכי אוהב/ת לעשות? (משהו שמעניק לך אנרגיה)." if st.session_state.lang == "he" else "Great! Let's begin. What is the one thing you love doing the most?"
+        msg = "נהדר! מהו הדבר שאת/ה הכי אוהב/ת לעשות? (משהו שמעניק לך אנרגיה)." if st.session_state.lang == "he" else "Great! What is the one thing you love doing the most?"
         st.session_state.messages.append({"role": "assistant", "content": msg})
         st.session_state.step = "chat"; st.rerun()
 
@@ -57,20 +66,10 @@ elif st.session_state.step == "chat":
         with st.chat_message("user"): st.markdown(p)
 
         try:
-            # שימוש בשם המודל הקצר - הכי בטוח נגד 404
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            
-            # שליחת ההודעה האחרונה כטקסט פשוט
+            # שימוש בשם המודל שגילינו כאוטומטי
+            model = genai.GenerativeModel(st.session_state.model_to_use)
             response = model.generate_content(p)
-            
             st.session_state.messages.append({"role": "assistant", "content": response.text})
             st.rerun()
         except Exception as e:
-            # אם יש שגיאה, ננסה את המודל השני כגיבוי מיידי
-            try:
-                model = genai.GenerativeModel('gemini-pro')
-                response = model.generate_content(p)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
-                st.rerun()
-            except:
-                st.error(f"שגיאה טכנית: {str(e)}")
+            st.error(f"שגיאה טכנית: {str(e)}")
