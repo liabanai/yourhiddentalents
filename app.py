@@ -6,37 +6,37 @@ st.set_page_config(page_title="Genius Zone Coach", layout="centered")
 
 st.markdown("""
     <style>
-    /* הגדרת כיווניות ויישור כללי - שימוש ב-!important כדי לדרוס הגדרות מערכת */
     .stApp, .stChatMessage, div[data-testid="stChatMessageContent"] {
         direction: rtl !important;
         text-align: right !important;
     }
-    
-    /* תיקון ספציפי לטקסט בתוך הודעות הצ'אט */
     div[data-testid="stChatMessageContent"] p, div[data-testid="stChatMessageContent"] li {
         text-align: right !important;
         direction: rtl !important;
         font-size: 1.15rem !important;
         line-height: 1.7 !important;
     }
-    
-    /* יישור תיבת הקלט */
     div[data-testid="stChatInput"] textarea {
         text-align: right !important;
         direction: rtl !important;
     }
-
-    /* עיצוב כפתורים */
     .stButton button {
         width: 100%;
         border-radius: 20px;
         font-weight: bold;
         height: 3.5em;
+        font-size: 1.1rem;
     }
-
-    /* מירכוז כותרות */
-    h1, h2, h3 {
-        text-align: center !important;
+    h1, h2, h3 { text-align: center !important; }
+    /* עיצוב מיוחד לטקסט הפתיחה */
+    .intro-text {
+        font-size: 1.2rem;
+        line-height: 1.8;
+        text-align: center;
+        padding: 20px;
+        background-color: #f8f9fb;
+        border-radius: 15px;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -62,30 +62,57 @@ You are an elite performance coach specializing in Dr. Gay Hendricks' 'Zone of G
 - Analysis: After 4 answers, provide: Genius DNA, Excellence Trap, and Genius Statement.
 """
 
-# 4. מסך בחירת שפה
-if "language" not in st.session_state:
+# 4. ניהול שלבי הפתיחה (שפה -> טקסט השראה -> התחלה)
+if "step" not in st.session_state:
+    st.session_state.step = "language_selection"
+
+if st.session_state.step == "language_selection":
     st.markdown("<h3 style='text-align: center;'>Choose Your Language / בחרו שפה</h3>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
-    
     with col1:
         if st.button("English 🇺🇸"):
             st.session_state.language = "English"
-            intro = "We are embarking on a journey to find your 'Zone of Genius'. This is the intersection of your passion, effortless skill, and unique value. Most people live in their 'Zone of Excellence' – doing things they are good at, but which ultimately drain them. Today, we will find what makes you truly unique."
-            st.session_state.messages = [{"role": "assistant", "content": intro}]
+            st.session_state.step = "intro_text"
             st.rerun()
-            
     with col2:
         if st.button("עברית 🇮🇱"):
             st.session_state.language = "Hebrew"
-            intro = "אנחנו יוצאים למסע למציאת 'אזור הגאונות' שלכם. זהו המפגש בין התשוקה שלכם, המיומנות חסרת המאמץ והערך הייחודי שלכם.\n\nרוב האנשים חיים ב'אזור המצוינות' שלהם – עושים דברים שהם טובים בהם, אך בסופו של דבר מרוקנים אותם.\n\nהיום, נמצא את מה שהופך אתכם לייחודיים באמת."
-            st.session_state.messages = [{"role": "assistant", "content": intro}]
+            st.session_state.step = "intro_text"
             st.rerun()
     st.stop()
 
-# 5. הצגת היסטוריית הצ'אט
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+elif st.session_state.step == "intro_text":
+    if st.session_state.language == "Hebrew":
+        st.markdown("""
+        <div class="intro-text">
+        אנחנו יוצאים למסע למציאת "אזור הגאונות" שלכם. זהו המפגש בין התשוקה שלכם, המיומנות חסרת המאמץ והערך הייחודי שלכם.<br><br>
+        רוב האנשים חיים ב"אזור המצוינות" שלהם – עושים דברים שהם טובים בהם, אך בסופו של דבר מרוקנים אותם.<br><br>
+        היום, נמצא את מה שהופך אתכם לייחודיים באמת.
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("התחל 🏁"):
+            st.session_state.messages = [{"role": "assistant", "content": "נהדר! בואו נתחיל במסע. מהו הדבר שאת/ה הכי אוהב/ת לעשות? (משהו שמעניק לך אנרגיה)."}]
+            st.session_state.step = "chat"
+            st.rerun()
+    else:
+        st.markdown("""
+        <div class="intro-text">
+        We are embarking on a journey to find your 'Zone of Genius'. This is the intersection of your passion, effortless skill, and unique value.<br><br>
+        Most people live in their 'Zone of Excellence' – doing things they are good at, but which ultimately drain them.<br><br>
+        Today, we will find what makes you truly unique.
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Start 🏁"):
+            st.session_state.messages = [{"role": "assistant", "content": "Great! Let's begin. What is the one thing you love doing the most? (Something that gives you energy)."}]
+            st.session_state.step = "chat"
+            st.rerun()
+    st.stop()
+
+# 5. הצגת הצ'אט (רק אחרי שלחצו התחל)
+if "messages" in st.session_state:
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
 # 6. לוגיקת הצ'אט
 if prompt := st.chat_input("השיבו כאן..."):
