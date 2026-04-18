@@ -6,24 +6,30 @@ st.set_page_config(page_title="Genius Zone Coach", layout="centered")
 
 st.markdown("""
     <style>
-    /* הגדרת כיווניות ויישור כללי - שימוש ב-!important כדי לדרוס הגדרות מערכת */
-    .stApp, .stChatMessage, div[data-testid="stChatMessageContent"] {
-        direction: rtl !important;
-        text-align: right !important;
+    /* הגדרת כיווניות ויישור כללי */
+    .stApp {
+        direction: rtl;
+        text-align: right;
     }
     
-    /* תיקון ספציפי לטקסט בתוך הודעות הצ'אט */
-    div[data-testid="stChatMessageContent"] p, div[data-testid="stChatMessageContent"] li {
-        text-align: right !important;
-        direction: rtl !important;
-        font-size: 1.15rem !important;
-        line-height: 1.7 !important;
+    /* שיפור הקריאות של טקסט הצ'אט */
+    div[data-testid="stChatMessageContent"] {
+        text-align: right;
+        direction: rtl;
+        font-size: 1.1rem; /* טקסט גדול יותר */
+        line-height: 1.6;   /* מרווח שורות נעים */
     }
     
-    /* יישור תיבת הקלט */
+    /* הוספת מרווח בין פסקאות בתוך ההודעה */
+    div[data-testid="stChatMessageContent"] p {
+        margin-bottom: 15px;
+    }
+
+    /* יישור ותצוגת תיבת הקלט */
     div[data-testid="stChatInput"] textarea {
-        text-align: right !important;
-        direction: rtl !important;
+        text-align: right;
+        direction: rtl;
+        font-size: 1.05rem;
     }
 
     /* עיצוב כפתורים */
@@ -32,11 +38,13 @@ st.markdown("""
         border-radius: 20px;
         font-weight: bold;
         height: 3.5em;
+        font-size: 1rem;
     }
 
     /* מירכוז כותרות */
     h1, h2, h3 {
         text-align: center !important;
+        padding-bottom: 1rem;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -54,17 +62,18 @@ except:
     st.error("שגיאה בחיבור ל-API. וודאו שהמפתח מוזן ב-Secrets.")
     st.stop()
 
-# 3. הוראות המערכת
+# 3. הוראות המערכת (The System Prompt)
 SYSTEM_PROMPT = """
 You are an elite performance coach specializing in Dr. Gay Hendricks' 'Zone of Genius'. 
 - Conduct the session ONLY in the language chosen by the user.
 - Ask the 4 questions ONE BY ONE. Wait for a response before proceeding.
 - Analysis: After 4 answers, provide: Genius DNA, Excellence Trap, and Genius Statement.
+- Keep the tone encouraging, professional, and insightful.
 """
 
 # 4. מסך בחירת שפה
 if "language" not in st.session_state:
-    st.markdown("<h3 style='text-align: center;'>Choose Your Language / בחרו שפה</h3>", unsafe_allow_html=True)
+    st.markdown("### Choose Your Language / בחרו שפה")
     col1, col2 = st.columns(2)
     
     with col1:
@@ -77,7 +86,7 @@ if "language" not in st.session_state:
     with col2:
         if st.button("עברית 🇮🇱"):
             st.session_state.language = "Hebrew"
-            intro = "אנחנו יוצאים למסע למציאת 'אזור הגאונות' שלכם. זהו המפגש בין התשוקה שלכם, המיומנות חסרת המאמץ והערך הייחודי שלכם.\n\nרוב האנשים חיים ב'אזור המצוינות' שלהם – עושים דברים שהם טובים בהם, אך בסופו של דבר מרוקנים אותם.\n\nהיום, נמצא את מה שהופך אתכם לייחודיים באמת."
+            intro = """אנחנו יוצאים למסע למציאת "אזור הגאונות" שלכם. זהו המפגש בין התשוקה שלכם, המיומנות חסרת המאמץ והערך הייחודי שלכם. \n\nרוב האנשים חיים ב"אזור המצוינות" שלהם – עושים דברים שהם טובים בהם, אך בסופו של דבר מרוקנים אותם. \n\nהיום, נמצא את מה שהופך אתכם לייחודיים באמת."""
             st.session_state.messages = [{"role": "assistant", "content": intro}]
             st.rerun()
     st.stop()
